@@ -1,7 +1,7 @@
 import tkinter
 import random
 from tkinter import filedialog
-import numpy
+import numpy as np
 import pandas
 from matplotlib import pyplot as plt
 
@@ -72,13 +72,13 @@ class K_Means_Clustering:
 
         # Remove unused columns
         columns_to_remove = ['Movie Name', 'Release Year', 'Duration', 'Metascore', 'Votes', 'Genre', 'Director',
-                             'Cast', 'Gross']
+                            'Cast', 'Gross']
         data = df.drop(columns=columns_to_remove)
 
         return data
 
     def euclidean_distance(self, point1, point2):
-        return numpy.sqrt(numpy.sum((point1 - point2) ** 2))
+        return np.sqrt(np.sum((point1 - point2) ** 2))
 
     def initialize_centroids(self, k):
         # Randomly initialize centroids
@@ -90,7 +90,7 @@ class K_Means_Clustering:
         clusters = []
         for point in self.data.values:
             distances = [self.euclidean_distance(point, centroid) for centroid in centroids]
-            cluster = numpy.argmin(distances)
+            cluster = np.argmin(distances)
             clusters.append(cluster)
         return clusters
 
@@ -99,7 +99,7 @@ class K_Means_Clustering:
         for i in range(k):
             cluster_points = [self.data.iloc[j].values for j in range(len(self.data)) if clusters[j] == i]
             if len(cluster_points) > 0:
-                centroid = numpy.mean(cluster_points, axis=0)
+                centroid = np.mean(cluster_points, axis=0)
             else:
                 # If the cluster is empty, randomly initialize a centroid
                 centroid = self.data.sample().values[0]
@@ -112,8 +112,8 @@ class K_Means_Clustering:
             clusters = self.assign_clusters(centroids)
             new_centroids = self.update_centroids(clusters, k)
 
-            if numpy.allclose(numpy.array(centroids, dtype=numpy.float64),
-                numpy.array(new_centroids, dtype=numpy.float64)):
+            if np.allclose(np.array(centroids, dtype=np.float64),
+                np.array(new_centroids, dtype=np.float64)):
                 break
 
             centroids = new_centroids
@@ -124,7 +124,7 @@ class K_Means_Clustering:
         # Calculate distances from data points to centroids
         distances = [self.euclidean_distance(self.data.iloc[i].values, centroids[cluster]) for i, cluster in enumerate(clusters)]
         # Determine the threshold based on the specified percentile
-        threshold = numpy.percentile(distances, percentile)
+        threshold = np.percentile(distances, percentile)
         # Identify outliers based on the threshold
         outliers = [i for i, distance in enumerate(distances) if distance > threshold]
         return outliers
@@ -150,7 +150,7 @@ class K_Means_Clustering:
     """
     def display_results(self, clusters, outliers):
         # Convert clusters to integer array
-        clusters = numpy.array(clusters, dtype=int)
+        clusters = np.array(clusters, dtype=int)
 
         # Display content of each cluster
         for cluster_id in range(max(clusters) + 1):
@@ -184,7 +184,7 @@ class K_Means_Clustering:
 
     def visualize_clusters(self, clusters, centroids):
         # Convert clusters to integer array
-        clusters = numpy.array(clusters, dtype=int)
+        clusters = np.array(clusters, dtype=int)
 
         # Plot the data points with cluster assignments
         plt.figure(figsize=(8, 6))
@@ -193,7 +193,7 @@ class K_Means_Clustering:
             plt.scatter(cluster_data.iloc[:, 0], [cluster_id] * len(cluster_data), label=f'Cluster {cluster_id + 1}')
 
         # Plot the centroids
-        centroids = numpy.array(centroids)
+        centroids = np.array(centroids)
         plt.scatter(centroids[:, 0], [i for i in range(len(centroids))], color='black', marker='x', label='Centroids')
 
         plt.title('K-Means Clustering')
