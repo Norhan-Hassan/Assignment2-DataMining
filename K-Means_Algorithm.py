@@ -1,7 +1,10 @@
+# 20201202
+# Norhan Hassan
+
 import tkinter
 import random
 from tkinter import filedialog
-import numpy as np
+import numpy
 import pandas
 from matplotlib import pyplot as plt
 
@@ -52,16 +55,21 @@ class K_Means_Clustering:
 
         # Preprocess data
         self.data = self.preprocess_data(df)
-
+        print(self.data)
         clusters, centroids = self.k_means_clustering(value_of_k_entry)
 
         outliers = self.detect_outliers(clusters, centroids)
-        self.display_results(clusters, outliers)
+
+        self.display_outliers(outliers, clusters)
+        # self.display_clusters(clusters)
+        self.data = self.remove_outliers(clusters, centroids)
+
+        # after removing outliers
+        clusters, centroids = self.k_means_clustering(value_of_k_entry)
+        self.display_clusters(clusters)
+
         # Visualize clusters
-        self.visualize_clusters(clusters, centroids)
-        self.data = self.remove_outliers()
-
-
+        # self.visualize_clusters(clusters, centroids)
 
     def preprocess_data(self, df):
 
@@ -72,25 +80,26 @@ class K_Means_Clustering:
 
         # Remove unused columns
         columns_to_remove = ['Movie Name', 'Release Year', 'Duration', 'Metascore', 'Votes', 'Genre', 'Director',
-                            'Cast', 'Gross']
+                             'Cast', 'Gross']
         data = df.drop(columns=columns_to_remove)
 
         return data
 
     def euclidean_distance(self, point1, point2):
-        return np.sqrt(np.sum((point1 - point2) ** 2))
+        return numpy.sqrt(numpy.sum((point1 - point2) ** 2))
 
     def initialize_centroids(self, k):
         # Randomly initialize centroids
         centroids_indices = random.sample(range(len(self.data)), k)
         centroids = [self.data.iloc[i].values.tolist() for i in centroids_indices]
+        print(centroids)
         return centroids
 
     def assign_clusters(self, centroids):
         clusters = []
         for point in self.data.values:
             distances = [self.euclidean_distance(point, centroid) for centroid in centroids]
-            cluster = np.argmin(distances)
+            cluster = numpy.argmin(distances)
             clusters.append(cluster)
         return clusters
 
@@ -99,9 +108,10 @@ class K_Means_Clustering:
         for i in range(k):
             cluster_points = [self.data.iloc[j].values for j in range(len(self.data)) if clusters[j] == i]
             if len(cluster_points) > 0:
-                centroid = np.mean(cluster_points, axis=0)
+                centroid = numpy.mean(cluster_points, axis=0)
+                print(centroids)
             else:
-                # If the cluster is empty, randomly initialize a centroid
+
                 centroid = self.data.sample().values[0]
             centroids.append(centroid)
         return centroids
@@ -112,79 +122,99 @@ class K_Means_Clustering:
             clusters = self.assign_clusters(centroids)
             new_centroids = self.update_centroids(clusters, k)
 
-            if np.allclose(np.array(centroids, dtype=np.float64),
-                np.array(new_centroids, dtype=np.float64)):
+            if numpy.allclose(numpy.array(centroids, dtype=numpy.float64),
+                              numpy.array(new_centroids, dtype=numpy.float64)):
                 break
 
             centroids = new_centroids
-            #clusters = self.handle_outliers(clusters, centroids)
+
         return clusters, centroids
 
-    def detect_outliers(self, clusters, centroids, percentile=95):
-        # Calculate distances from data points to centroids
-        distances = [self.euclidean_distance(self.data.iloc[i].values, centroids[cluster]) for i, cluster in enumerate(clusters)]
-        # Determine the threshold based on the specified percentile
-        threshold = np.percentile(distances, percentile)
-        # Identify outliers based on the threshold
-        outliers = [i for i, distance in enumerate(distances) if distance > threshold]
+    def detect_outliers(self, clusters, centroids):
+        distances = [self.euclidean_distance(self.data.iloc[i].values, centroids[cluster]) for i, cluster in
+                     enumerate(clusters)]
+        q1 = numpy.percentile(distances, 25)
+        q3 = numpy.percentile(distances, 75)
+        iqr = q3 - q1
+        upper_bound = q3 + 1.5 * iqr
+        lower_bound = q1 - 1.5 * iqr
+        outliers = [i for i, distance in enumerate(distances) if distance > upper_bound or distance < lower_bound]
         return outliers
 
-    def remove_outliers(self):
-        clusters, centroids = self.k_means_clustering(3)  # Using 3 clusters for outlier detection
+    def remove_outliers(self, clusters, centroids):
         outliers = self.detect_outliers(clusters, centroids)
         self.outliers = self.data.iloc[outliers]
-        self.data = self.data.drop(outliers)
+        self.data = self.data.drop(outliers).reset_index(drop=True)
         return self.data
 
+    def display_clusters(self, clusters):
 
-    """
-    def handle_outliers(self, clusters, centroids):
-        outliers = self.detect_outliers(clusters, centroids)
-        for outlier_index in outliers:
-            outlier_point = self.data.iloc[outlier_index].values
-            nearest_centroid_index = min(range(len(centroids)),
-                                    key=lambda i: self.euclidean_distance(outlier_point, centroids[i]))
-            # Assign outlier to the nearest centroid's cluster
-            clusters[outlier_index] = nearest_centroid_index
-        return clusters
-    """
-    def display_results(self, clusters, outliers):
-        # Convert clusters to integer array
-        clusters = np.array(clusters, dtype=int)
+        clusters = numpy.array(clusters, dtype=int)
 
-        # Display content of each cluster
         for cluster_id in range(max(clusters) + 1):
             cluster_data = self.data[clusters == cluster_id]
             print(f"Cluster {cluster_id + 1}:")
             print(cluster_data)
+            print(f"Count: {len(cluster_data)}")
 
-        # Display outlier records if any
-        if outliers:
-            print("Outlier records:")
-            # print(self.data.iloc[outliers])
-            outlier_records = self.data.iloc[outliers]
-            print(outlier_records)
-        else:
-            print("No outliers found.")
-        # in GUI
         self.cluster_text.delete(1.0, tkinter.END)
-        self.outlier_text.delete(1.0, tkinter.END)
-        # Display content of each cluster
+
         cluster_info = ""
         for cluster_id in range(max(clusters) + 1):
             cluster_data = self.data[clusters == cluster_id]
-            cluster_info += f"Cluster {cluster_id + 1}:\n{cluster_data}\n\n"
+            cluster_info += f"Cluster {cluster_id + 1}:\n{cluster_data}\n"
+            cluster_info += f"Count: {len(cluster_data)}\n\n"
+
         self.cluster_text.insert(tkinter.END, cluster_info)
-        # Display outlier records if any
+
+    def display_outliers(self, outliers, clusters):
+
+        clusters = numpy.array(clusters, dtype=int)
+
+        outlier_counts = [0] * (max(clusters) + 1)
+        upper_bounds = [float("-inf")] * (max(clusters) + 1)
+        lower_bounds = [float("inf")] * (max(clusters) + 1)
+        cluster_outliers = [[] for _ in range(max(clusters) + 1)]
+
+        for i in outliers:
+            cluster_id = clusters[i]
+            outlier_counts[cluster_id] += 1
+            cluster_outliers[cluster_id].append(i)
+            data_point = self.data.iloc[i]
+            for j, value in enumerate(data_point):
+                if value > upper_bounds[cluster_id]:
+                    upper_bounds[cluster_id] = value
+                if value < lower_bounds[cluster_id]:
+                    lower_bounds[cluster_id] = value
+
+        outlier_info = "Outlier records:\n"
         if outliers:
-            outlier_records = self.data.iloc[outliers]
-            self.outlier_text.insert(tkinter.END, str(outlier_records))
+            for cluster_id in range(len(cluster_outliers)):
+                outlier_info += f"Cluster {cluster_id + 1} outliers ({outlier_counts[cluster_id]}):\n"
+                if cluster_outliers[cluster_id]:
+                    cluster_records = self.data.iloc[cluster_outliers[cluster_id]]
+                    outlier_info += str(cluster_records) + "\n"
+                outlier_info += f"Upper Bound: {upper_bounds[cluster_id]}\n"
+                outlier_info += f"Lower Bound: {lower_bounds[cluster_id]}\n\n"
+
+        self.outlier_text.delete(1.0, tkinter.END)
+        #  in GUI
+        if outliers:
+            self.outlier_text.insert(tkinter.END, outlier_info)
         else:
             self.outlier_text.insert(tkinter.END, "No outliers found.")
 
+    """
+    def detect_outliers(self, clusters, centroids, percentile=95):
+        distances = [self.euclidean_distance(self.data.iloc[i].values, centroids[cluster]) for i, cluster in enumerate(clusters)]
+        threshold = numpy.percentile(distances, percentile)
+        outliers = [i for i, distance in enumerate(distances) if distance > threshold]
+        return outliers
+    """
+    """
     def visualize_clusters(self, clusters, centroids):
         # Convert clusters to integer array
-        clusters = np.array(clusters, dtype=int)
+        clusters = numpy.array(clusters, dtype=int)
 
         # Plot the data points with cluster assignments
         plt.figure(figsize=(8, 6))
@@ -193,7 +223,7 @@ class K_Means_Clustering:
             plt.scatter(cluster_data.iloc[:, 0], [cluster_id] * len(cluster_data), label=f'Cluster {cluster_id + 1}')
 
         # Plot the centroids
-        centroids = np.array(centroids)
+        centroids = numpy.array(centroids)
         plt.scatter(centroids[:, 0], [i for i in range(len(centroids))], color='black', marker='x', label='Centroids')
 
         plt.title('K-Means Clustering')
@@ -202,6 +232,7 @@ class K_Means_Clustering:
         plt.legend()
         plt.grid(True)
         plt.show()
+    """
 
 
 if __name__ == "__main__":
